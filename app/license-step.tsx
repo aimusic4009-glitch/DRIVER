@@ -188,8 +188,7 @@ export default function DriverLicensePage() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}
-
+      <View style={styles.content}>
         <View style={styles.imagesContainer}>
           {/* License Image */}
           <TouchableOpacity
