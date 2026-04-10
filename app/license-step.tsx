@@ -1,4 +1,4 @@
- import {
+import {
   View,
   Text,
   TextInput,
@@ -189,6 +189,7 @@ export default function DriverLicensePage() {
       </View>
 
       <View style={styles.content}>
+
         <View style={styles.imagesContainer}>
           {/* License Image */}
           <TouchableOpacity
@@ -322,13 +323,13 @@ export default function DriverLicensePage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1a1a1a' },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20, 
-    paddingTop: Platform.OS === 'ios' ? 50 : 30, 
-    paddingBottom: 16 
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingBottom: 16
   },
   headerText: { color: '#fff', fontSize: 18, fontWeight: '600' },
   headerTitleLarge: { color: '#fff', fontSize: 24, fontWeight: '700' },
@@ -336,15 +337,19 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 16 },
   imagesContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32, gap: 16 },
   imageBox: { flex: 1, alignItems: 'center' },
-  placeholderBox: { width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: '#3a3a3a',
-    justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  placeholderBox: {
+    width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: '#3a3a3a',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 8
+  },
   capturedImage: { width: '100%', aspectRatio: 1, borderRadius: 16, marginBottom: 8 },
   plusIcon: { fontSize: 48, color: '#fff', fontWeight: '300' },
   imageLabel: { fontSize: 14, color: '#fff', textAlign: 'center', lineHeight: 18, paddingHorizontal: 4 },
   inputContainer: { marginBottom: 20 },
   inputLabel: { fontSize: 14, color: '#999', marginBottom: 8 },
-  input: { backgroundColor: '#3a3a3a', borderRadius: 12, padding: 16, fontSize: 16, color: '#fff',
-    borderWidth: 1, borderColor: '#4a4a4a' },
+  input: {
+    backgroundColor: '#3a3a3a', borderRadius: 12, padding: 16, fontSize: 16, color: '#fff',
+    borderWidth: 1, borderColor: '#4a4a4a'
+  },
   footer: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 30 : 20, paddingTop: 8 },
   progressContainer: { marginBottom: 16 },
   progressText: { fontSize: 16, fontWeight: '600', color: '#fff', marginBottom: 12, textAlign: 'center' },
@@ -353,8 +358,10 @@ const styles = StyleSheet.create({
   buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   backButton: { backgroundColor: '#3a3a3a', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 24 },
   backButtonText: { fontSize: 18, fontWeight: '600', color: '#fff' },
-  nextButton: { flex: 1, backgroundColor: '#B19CD9', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 24,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  nextButton: {
+    flex: 1, backgroundColor: '#B19CD9', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 24,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8
+  },
   nextButtonDisabled: { backgroundColor: '#3a3a3a', opacity: 0.5 },
   nextButtonText: { fontSize: 18, fontWeight: '600', color: '#000' },
   errorText: { color: '#ff4444', fontSize: 12, marginTop: 4 },
