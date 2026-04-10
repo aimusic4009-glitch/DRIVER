@@ -100,9 +100,9 @@ export default function Dashboard() {
   const SLIDE_WIDTH = width - 40;
   const SLIDE_THRESHOLD = SLIDE_WIDTH * 0.5;
 
-  // Panel animation for draggable bottom sheet (panel is above nav bar)
-  const PANEL_MIN_HEIGHT = 200; // Collapsed height showing stats
-  const PANEL_MAX_HEIGHT = height * 0.45; // Expanded height
+  // Panel animation for draggable bottom sheet (panel slides behind nav bar)
+  const PANEL_MIN_HEIGHT = 280; // Collapsed height (includes space behind 85px nav)
+  const PANEL_MAX_HEIGHT = height * 0.6; // Expanded height
   const panelY = useRef(new Animated.Value(0)).current; // 0 = collapsed, negative = expanded
   const savedPanelY = useRef(0);
 
@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
   // Floating toggle - FULL WIDTH, positioned above the panel
   toggleContainer: {
     position: 'absolute',
-    bottom: 280, // Above the panel when collapsed
+    bottom: 300, // Above the panel when collapsed (panel is 280px)
     left: 16,
     right: 16,
     zIndex: 5, // Lower z-index so panel slides over it
@@ -997,22 +997,22 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   
-  // Sliding panel - positioned ABOVE the bottom nav
+  // Sliding panel - positioned BEHIND the bottom nav, IN FRONT of toggle
   slidingPanel: {
     position: 'absolute',
-    bottom: 85, // Above bottom nav (nav is 85px)
+    bottom: 0, // Starts from bottom, slides behind nav
     left: 0,
     right: 0,
-    height: 200, // Min height when collapsed
+    height: 280, // Min height when collapsed (includes space behind nav)
     backgroundColor: '#F5F5F5',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    zIndex: 10, // Higher z-index so it slides over toggle
+    zIndex: 10, // Higher than toggle (5), lower than nav (15)
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 20,
+    elevation: 10,
   },
   panelHandleArea: {
     width: '100%',
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
   panelContent: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingBottom: 12, // Panel is now above nav, no extra space needed
+    paddingBottom: 100, // Extra space for content behind bottom nav
   },
   
   // Scheduled requests card
@@ -1096,6 +1096,8 @@ const styles = StyleSheet.create({
     borderTopColor: '#E8E8E8',
     paddingBottom: Platform.OS === 'ios' ? 20 : 10,
     paddingTop: 8,
+    zIndex: 15, // Always on top - panel slides behind it
+    elevation: 25,
   },
   navItem: { alignItems: 'center', justifyContent: 'center' },
   iconWrapper: { position: 'relative' },

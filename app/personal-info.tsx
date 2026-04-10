@@ -229,6 +229,7 @@ export default function PersonalInfoPage() {
           place: '',
           role: 'driver',
           verificationStatus: 'pending',
+          registrationCompleted: false,
           rating: 0,
           reviewCount: 0,
           profile: {

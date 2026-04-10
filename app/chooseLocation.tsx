@@ -66,6 +66,7 @@ export default function ChooseLocation() {
       await updateDoc(driverRef, {
         place,
         verificationStatus: 'pending',
+        registrationCompleted: true,
         registrationStep: 7,
         updatedAt: serverTimestamp(),
       });
