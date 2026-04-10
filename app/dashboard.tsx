@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
-import { database, auth } from '@/config/firebase';
+import { database, auth, firestore } from '@/config/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 // Helper functions to handle location across platforms
 const getLocation = async () => {
@@ -63,7 +64,7 @@ const watchLocation = async (callback: (coords: { latitude: number; longitude: n
     return { remove: () => navigator.geolocation.clearWatch(watchId) };
   }
 };
-import { ref, update, onValue, off, remove } from 'firebase/database';
+import { ref, update, onValue, off, remove, set } from 'firebase/database';
 import { Home, Mail, Clock, Settings, MapPin, Shield } from 'lucide-react-native';
 import RideRequestPopup from '@/components/RideRequestPopup';
 import RideManagementPanel from '@/components/RideManagementPanel';
@@ -76,10 +77,10 @@ const { width, height } = Dimensions.get('window');
 
 export default function Dashboard() {
   const [isOnline, setIsOnline] = useState(false);
-  const [userStatus, setUserStatus] = useState<'pending' | 'approved' | 'accepted' | 'rejected'>('accepted');
+  const [userStatus, setUserStatus] = useState<'pending' | 'approved' | 'accepted' | 'rejected'>('pending');
+  const [registrationCompleted, setRegistrationCompleted] = useState(false);
   const [locationSubscription, setLocationSubscription] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [operationPlace, setOperationPlace] = useState<string>('');
   const [activeTab, setActiveTab] = useState('home');
 
   const [showRidePopup, setShowRidePopup] = useState(false);
@@ -99,9 +100,9 @@ export default function Dashboard() {
   const SLIDE_WIDTH = width - 40;
   const SLIDE_THRESHOLD = SLIDE_WIDTH * 0.5;
 
-  // Panel animation for draggable bottom sheet
-  const PANEL_MIN_HEIGHT = 260; // Collapsed height showing stats
-  const PANEL_MAX_HEIGHT = height * 0.55; // Expanded height
+  // Panel animation for draggable bottom sheet (panel is above nav bar)
+  const PANEL_MIN_HEIGHT = 200; // Collapsed height showing stats
+  const PANEL_MAX_HEIGHT = height * 0.45; // Expanded height
   const panelY = useRef(new Animated.Value(0)).current; // 0 = collapsed, negative = expanded
   const savedPanelY = useRef(0);
 
@@ -112,29 +113,59 @@ export default function Dashboard() {
       return;
     }
 
-    const userRef = ref(database, `users/${uid}`);
-    const statusListener = onValue(userRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setUserStatus(data.status || 'pending');
-        setDriverData(data);
-        if (data.operation?.place) setOperationPlace(data.operation.place);
-        if (data.operation?.available !== undefined) {
-          const available = data.operation.available;
-          setIsOnline(available);
-          sliderX.setValue(available ? SLIDE_WIDTH : 0);
-        }
+    // LISTEN TO FIRESTORE drivers/{uid} for verification status (NOT Realtime DB users/{uid})
+    const driverDocRef = doc(firestore, 'drivers', uid);
+    const unsubscribeFirestore = onSnapshot(driverDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // Set verification status from Firestore
+        const verificationStatus = data.verificationStatus || 'pending';
+        const regCompleted = data.registrationCompleted === true;
+        
+        setUserStatus(verificationStatus as 'pending' | 'approved' | 'accepted' | 'rejected');
+        setRegistrationCompleted(regCompleted);
+        
+        // Store driver profile data for ride acceptance
+        setDriverData({
+          profile: {
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+            profilePicture: data.profilePicture || '',
+          },
+          vehicle: {
+            brand: data.vehicleBrand || '',
+            model: data.vehicleModel || '',
+            color: data.vehicleColor || '',
+            plateNumber: data.plateNumber || '',
+          },
+          rating: data.rating || 5.0,
+        });
       }
       setIsLoading(false);
     });
 
-    const driverRef = ref(database, `drivers/${uid}`);
-    let currentRideUnsubscribe: (() => void) | null = null;
-
-    const driverListener = onValue(driverRef, (snapshot) => {
+    // Listen to drivers_online/{uid} for online status
+    const driversOnlineRef = ref(database, `drivers_online/${uid}`);
+    const onlineListener = onValue(driversOnlineRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setIsBusy(data.busy || false);
+        setIsOnline(data.isOnline === true);
+        setIsBusy(data.isBusy === true);
+        sliderX.setValue(data.isOnline ? SLIDE_WIDTH : 0);
+      } else {
+        setIsOnline(false);
+        setIsBusy(false);
+        sliderX.setValue(0);
+      }
+    });
+
+    // Listen to Realtime DB drivers/{uid} for current ride info
+    const driverRealtimeRef = ref(database, `drivers/${uid}`);
+    let currentRideUnsubscribe: (() => void) | null = null;
+
+    const driverListener = onValue(driverRealtimeRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
         if (data.currentRide) {
           if (currentRideUnsubscribe) {
             currentRideUnsubscribe();
@@ -162,8 +193,9 @@ export default function Dashboard() {
     });
 
     return () => {
-      off(userRef, 'value', statusListener);
-      off(driverRef, 'value', driverListener);
+      unsubscribeFirestore();
+      off(driversOnlineRef, 'value', onlineListener);
+      off(driverRealtimeRef, 'value', driverListener);
       if (currentRideUnsubscribe) {
         currentRideUnsubscribe();
       }
@@ -234,6 +266,11 @@ export default function Dashboard() {
 
       setCurrentLocation({ latitude, longitude });
 
+      // Update driver_locations/{uid} with geohash format for GeoFire compatibility
+      const geoObject = createGeoFireObject(latitude, longitude);
+      await set(ref(database, `driver_locations/${uid}`), geoObject);
+
+      // Also update drivers/{uid}/location for backwards compatibility
       await update(ref(database, `drivers/${uid}/location`), {
         latitude,
         longitude,
@@ -247,6 +284,7 @@ export default function Dashboard() {
         lastActive: Date.now(),
       });
 
+      // Update ride location if driver is busy with an active ride
       if (isBusy && activeRide) {
         await update(ref(database, `rides/${activeRide.id}/location`), {
           latitude,
@@ -254,7 +292,7 @@ export default function Dashboard() {
         });
       }
 
-      console.log('📍 Driver location updated:', latitude, longitude);
+      console.log('[v0] Driver location updated with geohash:', latitude, longitude);
     });
     setLocationSubscription(subscription);
   };
@@ -267,16 +305,19 @@ export default function Dashboard() {
       try {
         await locationSubscription.remove();
       } catch (error) {
-        console.log('Error removing location subscription:', error);
+        console.log('[v0] Error removing location subscription:', error);
       }
       setLocationSubscription(null);
     }
+
+    // Remove driver_locations/{uid} when going offline
+    await remove(ref(database, `driver_locations/${uid}`));
 
     await update(ref(database, `drivers/${uid}`), {
       status: 'offline',
     });
 
-    console.log('📍 Driver location tracking stopped');
+    console.log('[v0] Driver location tracking stopped, driver_locations removed');
   };
 
   const goOnline = async () => {
@@ -302,6 +343,7 @@ export default function Dashboard() {
     if (coords) {
       const { latitude, longitude, heading } = coords;
 
+      // Update drivers/{uid} with full info
       await update(ref(database, `drivers/${uid}`), {
         name: driverName,
         plateNumber,
@@ -317,14 +359,21 @@ export default function Dashboard() {
           heading: heading || 0,
         },
       });
+
+      // Update driver_locations/{uid} with geohash
+      const geoObject = createGeoFireObject(latitude, longitude);
+      await set(ref(database, `driver_locations/${uid}`), geoObject);
     }
+
+    // SET drivers_online/{uid} - NEW REALTIME STATE SYSTEM
+    await set(ref(database, `drivers_online/${uid}`), {
+      isOnline: true,
+      isBusy: false,
+      lastUpdated: Date.now(),
+    });
 
     setIsOnline(true);
     await startTracking();
-    await update(ref(database, `users/${uid}/operation`), {
-      available: true,
-      lastUpdated: Date.now(),
-    });
 
     Animated.spring(sliderX, {
       toValue: SLIDE_WIDTH,
@@ -333,7 +382,7 @@ export default function Dashboard() {
       friction: 10,
     }).start();
 
-    console.log('✅ Driver is now online with full info');
+    console.log('[v0] Driver is now online - drivers_online set');
   };
 
   const goOffline = async () => {
@@ -342,13 +391,14 @@ export default function Dashboard() {
 
     setIsOnline(false);
     await stopTracking();
+    
+    // Update drivers/{uid} status
     await update(ref(database, `drivers/${uid}`), {
       status: 'offline',
     });
-    await update(ref(database, `users/${uid}/operation`), {
-      available: false,
-      lastUpdated: Date.now(),
-    });
+
+    // REMOVE drivers_online/{uid} - Driver goes offline
+    await remove(ref(database, `drivers_online/${uid}`));
 
     Animated.spring(sliderX, {
       toValue: 0,
@@ -356,6 +406,8 @@ export default function Dashboard() {
       tension: 100,
       friction: 10,
     }).start();
+
+    console.log('[v0] Driver is now offline - drivers_online removed');
   };
 
   useEffect(() => {
@@ -436,13 +488,19 @@ export default function Dashboard() {
       console.log('🗑️ Removing from drivers/incoming...');
       await remove(ref(database, `drivers/${uid}/incoming/${pendingRide.id}`));
 
-      console.log('📝 Updating driver status to busy...');
+      console.log('[v0] Updating driver status to busy...');
       await update(ref(database, `drivers/${uid}`), {
         busy: true,
         currentRide: pendingRide.id,
       });
 
-      console.log('✅ Ride accepted successfully with all updates complete');
+      // Update drivers_online/{uid} isBusy = true
+      await update(ref(database, `drivers_online/${uid}`), {
+        isBusy: true,
+        lastUpdated: Date.now(),
+      });
+
+      console.log('[v0] Ride accepted successfully - driver is now busy');
 
       setShowRidePopup(false);
       setPendingRide(null);
@@ -514,13 +572,19 @@ export default function Dashboard() {
       console.log('📝 Cleaning up messages...');
       await remove(ref(database, `rides/${activeRide.id}/messages`));
 
-      console.log('📝 Updating driver status to available...');
+      console.log('[v0] Updating driver status to available...');
       await update(ref(database, `drivers/${uid}`), {
         busy: false,
         currentRide: null,
       });
 
-      console.log('✅ Trip completed, driver is now available');
+      // Update drivers_online/{uid} isBusy = false
+      await update(ref(database, `drivers_online/${uid}`), {
+        isBusy: false,
+        lastUpdated: Date.now(),
+      });
+
+      console.log('[v0] Trip completed - driver is now available');
 
       setActiveRide(null);
       setRideStatus(null);
@@ -533,7 +597,7 @@ export default function Dashboard() {
   const savedTranslateX = useRef(0);
 
   const gesture = Gesture.Pan()
-    .enabled(userStatus === 'approved' || userStatus === 'accepted')
+    .enabled(userStatus === 'approved' && registrationCompleted)
     .onStart(() => {
       savedTranslateX.current = isOnline ? SLIDE_WIDTH : 0;
     })
@@ -678,13 +742,13 @@ export default function Dashboard() {
         </View>
       </View>
 
-      {/* FLOATING TOGGLE - Behind the panel */}
+      {/* FLOATING TOGGLE - Behind the panel, FULL WIDTH */}
       <View
         style={[
           styles.toggleContainer,
-          (userStatus === 'pending' || userStatus === 'rejected') && styles.disabledSlider,
+          (userStatus !== 'approved' || !registrationCompleted) && styles.disabledSlider,
         ]}
-        pointerEvents={(userStatus === 'approved' || userStatus === 'accepted') ? 'auto' : 'none'}
+        pointerEvents={(userStatus === 'approved' && registrationCompleted) ? 'auto' : 'none'}
       >
         <View style={[styles.slideTrack, isOnline && styles.slideTrackOnline]}>
           <Text style={styles.slideInstructionText}>
@@ -787,12 +851,28 @@ export default function Dashboard() {
         </TouchableOpacity>
       </View>
 
-      {/* BLUR OVERLAY - Only show for pending */}
-      {userStatus === 'pending' && (
+      {/* BLUR OVERLAY - Show when not approved OR registration not completed */}
+      {(userStatus !== 'approved' || !registrationCompleted) && (
         <BlurView intensity={90} style={styles.blurOverlay}>
           <View style={styles.overlayCard}>
-            <Text style={styles.overlayTitle}>Your account is under review</Text>
-            <Text style={styles.overlayMessage}>Please wait up to 24 hours</Text>
+            <Text style={styles.overlayTitle}>
+              {userStatus === 'rejected' 
+                ? 'Your application was not approved' 
+                : userStatus === 'pending'
+                  ? 'Your account is under review'
+                  : !registrationCompleted
+                    ? 'Please complete your registration'
+                    : 'Account Status Pending'}
+            </Text>
+            <Text style={styles.overlayMessage}>
+              {userStatus === 'rejected'
+                ? 'Please contact support for more information'
+                : userStatus === 'pending'
+                  ? 'Please wait up to 24 hours'
+                  : !registrationCompleted
+                    ? 'Complete all required steps to start driving'
+                    : 'Please wait while we verify your account'}
+            </Text>
           </View>
         </BlurView>
       )}
@@ -860,12 +940,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   
-  // Floating toggle - positioned in the middle of the screen
+  // Floating toggle - FULL WIDTH, positioned above the panel
   toggleContainer: {
     position: 'absolute',
-    bottom: 320, // Above the panel when collapsed
-    left: 20,
-    right: 20,
+    bottom: 280, // Above the panel when collapsed
+    left: 16,
+    right: 16,
     zIndex: 5, // Lower z-index so panel slides over it
   },
   slideTrack: {
@@ -917,13 +997,13 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   
-  // Sliding panel
+  // Sliding panel - positioned ABOVE the bottom nav
   slidingPanel: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 85, // Above bottom nav (nav is 85px)
     left: 0,
     right: 0,
-    height: 260, // Min height when collapsed
+    height: 200, // Min height when collapsed
     backgroundColor: '#F5F5F5',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -949,7 +1029,7 @@ const styles = StyleSheet.create({
   panelContent: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingBottom: 100, // Space for bottom nav
+    paddingBottom: 12, // Panel is now above nav, no extra space needed
   },
   
   // Scheduled requests card
