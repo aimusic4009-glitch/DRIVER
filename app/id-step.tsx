@@ -309,17 +309,18 @@ export default function IdStepPage() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={{ width: 28 }} />
-        <Text style={styles.headerText}>Id number</Text>
+      {/* Header with proper safe area positioning */}
+      <View style={styles.headerFixed}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <ArrowLeft color="#fff" size={28} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitleLarge}>ID Number</Text>
         <TouchableOpacity>
           <Text style={styles.helpText}>Help</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Id number</Text>
-
         <View style={styles.imagesContainer}>
           <TouchableOpacity
             style={styles.imageBox}
@@ -411,6 +412,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a1a',
   },
+  // Fixed header with proper safe area
+  headerFixed: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingBottom: 12,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -444,7 +454,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 24,
   },
   instructionContent: {
     flex: 1,

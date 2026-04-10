@@ -99,6 +99,12 @@ export default function Dashboard() {
   const SLIDE_WIDTH = width - 40;
   const SLIDE_THRESHOLD = SLIDE_WIDTH * 0.5;
 
+  // Panel animation for draggable bottom sheet
+  const PANEL_MIN_HEIGHT = 260; // Collapsed height showing stats
+  const PANEL_MAX_HEIGHT = height * 0.55; // Expanded height
+  const panelY = useRef(new Animated.Value(0)).current; // 0 = collapsed, negative = expanded
+  const savedPanelY = useRef(0);
+
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) {
@@ -494,7 +500,7 @@ export default function Dashboard() {
   const handleCompleteTrip = async () => {
     const uid = auth.currentUser?.uid;
     if (!uid || !activeRide) {
-      console.error('❌ Cannot complete trip: missing uid or active ride');
+      console.error('��� Cannot complete trip: missing uid or active ride');
       return;
     }
 
@@ -541,6 +547,40 @@ export default function Dashboard() {
         goOnline();
       } else {
         goOffline();
+      }
+    });
+
+  // Panel drag gesture for bottom sheet
+  const panelGesture = Gesture.Pan()
+    .onStart(() => {
+      savedPanelY.current = (panelY as any)._value || 0;
+    })
+    .onUpdate((event) => {
+      const maxUp = -(PANEL_MAX_HEIGHT - PANEL_MIN_HEIGHT);
+      const newValue = Math.max(maxUp, Math.min(0, savedPanelY.current + event.translationY));
+      panelY.setValue(newValue);
+    })
+    .onEnd((event) => {
+      const maxUp = -(PANEL_MAX_HEIGHT - PANEL_MIN_HEIGHT);
+      const snapThreshold = maxUp / 2;
+      const currentValue = savedPanelY.current + event.translationY;
+      
+      if (currentValue < snapThreshold) {
+        // Snap to expanded
+        Animated.spring(panelY, {
+          toValue: maxUp,
+          useNativeDriver: true,
+          tension: 80,
+          friction: 12,
+        }).start();
+      } else {
+        // Snap to collapsed
+        Animated.spring(panelY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 80,
+          friction: 12,
+        }).start();
       }
     });
 
@@ -607,8 +647,8 @@ export default function Dashboard() {
         onHide={() => setShowToast(false)}
       />
 
-      {/* MAP AREA */}
-      <View style={styles.mapPlaceholder}>
+      {/* FULL SCREEN MAP BACKGROUND */}
+      <View style={styles.mapFullScreen}>
         <View style={styles.mapBackground}>
           <View style={styles.mapGrid}>
             {Array.from({ length: 20 }).map((_, i) => (
@@ -623,6 +663,7 @@ export default function Dashboard() {
           <View style={styles.serviceRadius} />
         </View>
 
+        {/* Top action buttons */}
         <View style={styles.topButtons}>
           <TouchableOpacity style={styles.topButton}>
             <View style={styles.iconCircle}>
@@ -637,9 +678,10 @@ export default function Dashboard() {
         </View>
       </View>
 
+      {/* FLOATING TOGGLE - Behind the panel */}
       <View
         style={[
-          styles.slideContainer,
+          styles.toggleContainer,
           (userStatus === 'pending' || userStatus === 'rejected') && styles.disabledSlider,
         ]}
         pointerEvents={(userStatus === 'approved' || userStatus === 'accepted') ? 'auto' : 'none'}
@@ -657,41 +699,66 @@ export default function Dashboard() {
                 },
               ]}
             >
-              <Text style={styles.chevronText}>»</Text>
+              <Text style={styles.chevronText}>{'>>'}</Text>
             </Animated.View>
           </GestureDetector>
         </View>
       </View>
 
-      {/* CONTENT */}
-      <View style={styles.contentContainer}>
-        <View style={styles.scheduledSection}>
-          <View style={styles.scheduledIconCircle}>
-            <Clock color="#666" size={28} />
+      {/* DRAGGABLE SLIDING PANEL */}
+      <Animated.View
+        style={[
+          styles.slidingPanel,
+          {
+            transform: [{ translateY: panelY }],
+          },
+        ]}
+      >
+        {/* Panel Handle - Draggable area */}
+        <GestureDetector gesture={panelGesture}>
+          <View style={styles.panelHandleArea}>
+            <View style={styles.panelHandle} />
           </View>
-          <View style={styles.scheduledTextContainer}>
-            <Text style={styles.scheduledTitle}>New scheduled requests</Text>
-            <Text style={styles.scheduledSubtitle}>Choose a request that suits you</Text>
+        </GestureDetector>
+
+        {/* Panel Content */}
+        <View style={styles.panelContent}>
+          {/* Scheduled Requests Card */}
+          <View style={styles.scheduledCard}>
+            <View style={styles.scheduledIconCircle}>
+              <Clock color="#666" size={24} />
+            </View>
+            <View style={styles.scheduledTextContainer}>
+              <Text style={styles.scheduledTitle}>New scheduled requests</Text>
+              <Text style={styles.scheduledSubtitle}>Choose a request that suits you</Text>
+            </View>
+          </View>
+
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <View style={styles.statHeader}>
+                <Text style={styles.statLabel}>Today&apos;s{'\n'}earnings</Text>
+              </View>
+              <Text style={styles.statValue}>£0.00</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={styles.statHeader}>
+                <Text style={styles.statLabel}>Activity{'\n'}score</Text>
+              </View>
+              <Text style={styles.statValue}>50%</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={styles.statHeader}>
+                <Text style={styles.statLabel}>Current{'\n'}rating</Text>
+              </View>
+              <Text style={styles.statValue}>5.00</Text>
+            </View>
           </View>
         </View>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Today's earnings</Text>
-            <Text style={styles.statValue}>£0.00</Text>
-          </View>
-
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Activity score</Text>
-            <Text style={styles.statValue}>50%</Text>
-          </View>
-
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Current rating</Text>
-            <Text style={styles.statValue}>5.00</Text>
-          </View>
-        </View>
-      </View>
+      </Animated.View>
 
       {/* NAV BAR */}
       <View style={styles.bottomNav}>
@@ -734,15 +801,23 @@ export default function Dashboard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#E8E8E8' },
   loadingContainer: { justifyContent: 'center', alignItems: 'center' },
-  mapPlaceholder: {
-    height: height * 0.55,
+  
+  // Full screen map background
+  mapFullScreen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: '#E8E8E8',
-    position: 'relative',
-    overflow: 'hidden',
   },
-  mapBackground: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  mapBackground: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+  },
   mapGrid: {
     position: 'absolute',
     width: '100%',
@@ -754,9 +829,9 @@ const styles = StyleSheet.create({
   mapLine: { flex: 1, borderWidth: 0.5, borderColor: '#D0D0D0', opacity: 0.3 },
   serviceRadius: {
     position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
     borderWidth: 2,
     borderColor: '#00C853',
     backgroundColor: 'rgba(0, 200, 83, 0.08)',
@@ -784,23 +859,24 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  slideContainer: {
+  
+  // Floating toggle - positioned in the middle of the screen
+  toggleContainer: {
     position: 'absolute',
-    top: height * 0.55 - 30,
-    left: 0,
-    right: 0,
-    zIndex: 20,
-    paddingHorizontal: 0,
+    bottom: 320, // Above the panel when collapsed
+    left: 20,
+    right: 20,
+    zIndex: 5, // Lower z-index so panel slides over it
   },
   slideTrack: {
-    height: 60,
+    height: 56,
     backgroundColor: '#00C853',
-    borderRadius: 8,
+    borderRadius: 30,
     justifyContent: 'center',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 10,
   },
@@ -809,78 +885,123 @@ const styles = StyleSheet.create({
   },
   slideInstructionText: {
     position: 'absolute',
-    left: 0,
+    left: 60,
     right: 0,
     textAlign: 'center',
     color: '#fff',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
   },
   slideThumb: {
     position: 'absolute',
-    left: 5,
-    top: 5,
-    width: 50,
-    height: 50,
-    borderRadius: 8,
+    left: 4,
+    top: 4,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 8,
   },
   chevronText: {
     color: '#00C853',
-    fontSize: 32,
+    fontSize: 20,
     fontWeight: '700',
   },
   disabledSlider: {
     opacity: 0.5,
   },
-  /* CONTENT BELOW */
-  contentContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: 40,
-    paddingHorizontal: 12,
-    paddingBottom: 100,
+  
+  // Sliding panel
+  slidingPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 260, // Min height when collapsed
+    backgroundColor: '#F5F5F5',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    zIndex: 10, // Higher z-index so it slides over toggle
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 20,
   },
-  scheduledSection: {
+  panelHandleArea: {
+    width: '100%',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  panelHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#D0D0D0',
+    borderRadius: 2,
+  },
+  panelContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 100, // Space for bottom nav
+  },
+  
+  // Scheduled requests card
+  scheduledCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#fff',
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   scheduledIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#E8E8E8',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   scheduledTextContainer: { flex: 1 },
-  scheduledTitle: { fontSize: 16, fontWeight: '600', color: '#2C2C2C', marginBottom: 4 },
+  scheduledTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A1A', marginBottom: 2 },
   scheduledSubtitle: { fontSize: 13, color: '#888' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
-  statBox: {
+  
+  // Stats row
+  statsRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    gap: 10,
+  },
+  statCard: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     borderRadius: 12,
-    alignItems: 'center',
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#EBEBEB',
   },
-  statLabel: { fontSize: 11, color: '#888', marginBottom: 6 },
-  statValue: { fontSize: 20, fontWeight: '700', color: '#000' },
+  statHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  statLabel: { fontSize: 12, color: '#666', lineHeight: 16 },
+  statValue: { fontSize: 18, fontWeight: '700', color: '#000' },
   bottomNav: {
     position: 'absolute',
     bottom: 0,

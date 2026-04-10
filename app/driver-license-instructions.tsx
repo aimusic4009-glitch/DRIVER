@@ -154,17 +154,17 @@ export default function DriverLicenseInstructionsPage() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/* Header with proper safe area positioning */}
+      <View style={styles.headerFixed}>
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft color="#fff" size={28} />
         </TouchableOpacity>
-        <Text style={styles.headerText}>Driver license</Text>
+        <Text style={styles.headerTitleLarge}>Driver License</Text>
         <View style={{ width: 28 }} />
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>Driver license</Text>
-
+      {/* Content area - instructions and illustration */}
+      <View style={styles.contentCompact}>
         <View style={styles.instructionsContainer}>
           <View style={styles.instructionItem}>
             <Text style={styles.checkmark}>✓</Text>
@@ -175,7 +175,7 @@ export default function DriverLicenseInstructionsPage() {
           <View style={styles.instructionItem}>
             <Text style={styles.checkmark}>✓</Text>
             <Text style={styles.instructionText}>
-              Please don't use screenshots, copies, or printed photos.
+              Please don&apos;t use screenshots, copies, or printed photos.
             </Text>
           </View>
           <View style={styles.instructionItem}>
@@ -186,14 +186,16 @@ export default function DriverLicenseInstructionsPage() {
           </View>
         </View>
 
-        <View style={styles.illustrationContainer}>
-          <View style={styles.illustrationBox}>
-            <Text style={styles.illustrationText}>📄</Text>
+        {/* Illustration with fixed height to prevent overlap */}
+        <View style={styles.illustrationContainerFixed}>
+          <View style={styles.illustrationBoxSmall}>
+            <Text style={styles.illustrationTextSmall}>📄</Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.footer}>
+      {/* Footer buttons - static at bottom */}
+      <View style={styles.footerFixed}>
         <TouchableOpacity style={styles.primaryButton} onPress={handleTakePicture}>
           <Text style={styles.primaryButtonText}>Take a new picture</Text>
         </TouchableOpacity>
@@ -207,11 +209,36 @@ export default function DriverLicenseInstructionsPage() {
 }
 
 const styles = StyleSheet.create({
-  // original styles preserved
   container: { flex: 1, backgroundColor: '#1a1a1a' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 20 },
+  // Fixed header position - proper safe area
+  headerFixed: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingBottom: 12,
+  },
+  headerTitleLarge: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingBottom: 16,
+  },
   headerText: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  // Compact content area
+  contentCompact: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
   title: { fontSize: 32, fontWeight: 'bold', color: '#fff', marginBottom: 32 },
   instructionsContainer: { marginBottom: 40 },
@@ -219,9 +246,38 @@ const styles = StyleSheet.create({
   checkmark: { fontSize: 20, color: '#B19CD9', marginRight: 12, marginTop: 2 },
   instructionText: { flex: 1, fontSize: 16, color: '#fff', lineHeight: 24, flexWrap: 'wrap' },
   illustrationContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  illustrationBox: { width: 160, height: 160, backgroundColor: '#B19CD9', borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center' },
+  // Fixed height illustration container to prevent overlap
+  illustrationContainerFixed: {
+    height: 160,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  illustrationBox: {
+    width: 160,
+    height: 160,
+    backgroundColor: '#B19CD9',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  illustrationBoxSmall: {
+    width: 140,
+    height: 140,
+    backgroundColor: '#B19CD9',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   illustrationText: { fontSize: 80 },
+  illustrationTextSmall: { fontSize: 50 },
+  // Fixed footer at bottom
+  footerFixed: {
+    paddingHorizontal: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 30,
+    paddingTop: 16,
+  },
   footer: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 30 : 20, paddingTop: 8 },
   primaryButton: { backgroundColor: '#B19CD9', borderRadius: 12, padding: 18, alignItems: 'center', marginBottom: 12 },
   primaryButtonText: { fontSize: 18, fontWeight: '600', color: '#000' },
@@ -229,11 +285,23 @@ const styles = StyleSheet.create({
   secondaryButtonText: { fontSize: 18, fontWeight: '600', color: '#fff' },
   cameraContainer: { flex: 1, backgroundColor: '#000' },
   camera: { flex: 1 },
-  cameraControls: { flex: 1, justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 40, paddingHorizontal: 20 },
+  cameraControls: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
   closeButton: { alignSelf: 'flex-start' },
-  captureButton: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center', alignItems: 'center', alignSelf: 'center' },
+  captureButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+  },
   captureButtonInner: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#fff' },
   previewContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   previewImage: { width: '100%', height: '70%', borderRadius: 16, resizeMode: 'contain' },

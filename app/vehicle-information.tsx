@@ -361,10 +361,17 @@ export default function VehicleInformation() {
           setAvailableServices(services);
           console.log('[v0] Available services:', services);
 
-          // Extract cargoTypes array
-          const cargoTypes = rules.cargoTypes || [];
-          setAvailableCargoTypes(cargoTypes);
-          console.log('[v0] Available cargo types:', cargoTypes);
+          // FIXED: For trucks, always use 'open' and 'enclosed' for cargo types
+          const category = registrationData.vehicleCategory;
+          if (category === 'truck') {
+            setAvailableCargoTypes(['open', 'enclosed']);
+            console.log('[v0] Set cargo types to open/enclosed for truck');
+          } else {
+            // Extract cargoTypes array for other categories
+            const cargoTypes = rules.cargoTypes || [];
+            setAvailableCargoTypes(cargoTypes);
+            console.log('[v0] Available cargo types:', cargoTypes);
+          }
 
           // Handle tonnageOptions - could be array of strings or numbers
           const tonnage = rules.tonnageOptions || [];
@@ -395,10 +402,12 @@ export default function VehicleInformation() {
       setAvailableTonnageOptions([]);
     } else if (category === 'truck') {
       setAvailableServices(['delivery', 'courier', 'moving']);
-      setAvailableCargoTypes(['general', 'fragile', 'perishable', 'hazardous']);
+      // FIXED: Cargo types for trucks must be 'open' or 'enclosed' only
+      setAvailableCargoTypes(['open', 'enclosed']);
       setAvailableTonnageOptions(['1 ton', '2 tons', '3 tons', '4 tons', '5 tons', '8 tons', '10 tons']);
     } else if (category === 'minibus') {
-      setAvailableServices(['ride', 'charter']);
+      // Bus auto-sets services to 'ride' - no selection needed
+      setAvailableServices([]);
       setAvailableCargoTypes([]);
       setAvailableTonnageOptions([]);
     } else {
@@ -462,14 +471,14 @@ export default function VehicleInformation() {
     return availableServices.length > 0;
   };
 
-  // Check if cargo types should be shown
+  // Check if cargo types should be shown - only for trucks
   const shouldShowCargoTypes = (): boolean => {
-    return availableCargoTypes.length > 0;
+    return registrationData.vehicleCategory === 'truck';
   };
 
-  // Check if tonnage should be shown
+  // Check if tonnage should be shown - only for trucks
   const shouldShowTonnage = (): boolean => {
-    return availableTonnageOptions.length > 0;
+    return registrationData.vehicleCategory === 'truck';
   };
 
   // Single select for cargo type - reset refrigerationType when changing
